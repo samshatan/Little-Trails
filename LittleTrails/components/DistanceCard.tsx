@@ -13,7 +13,9 @@ export default function DistanceCard({
       <Text style={styles.label}>Today's little travels</Text>
 
       <Text style={styles.distance}>
-        {distance.toFixed(1)} km
+        {distance < 1
+          ? `${Math.round(distance * 1000)} m`
+          : `${distance.toFixed(2)} km`}
       </Text>
 
       <Text style={styles.message}>

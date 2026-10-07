@@ -1,5 +1,5 @@
 import { StatusBar } from 'expo-status-bar';
-import { Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
@@ -13,11 +13,62 @@ import MapPanel from './components/MapPanel';
 import BottomNavigation from './components/BottomNavigation';
 import LocationCard from './components/LocationCard';
 import useWalkTracker from './hooks/useWalkTracker';
+import { getRouteDistanceMeters } from './utils/distance';
+import useElapsedTime from './hooks/useElapsedTime';
+import { saveWalk } from './storage/walks';
+import HistoryScreen from './screens/HistoryScreen';
 
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Today');
   const walk = useWalkTracker();
+  const distanceMeters = getRouteDistanceMeters(
+    walk.points.map((point) => point.coords)
+  );
+  const elapsedSeconds = useElapsedTime(walk.isTracking);
+
+  const minutes = Math.floor(elapsedSeconds / 60);
+  const seconds = elapsedSeconds % 60;
+
+  const walkTime =
+    `${String(minutes).padStart(2, '0')}:` +
+    `${String(seconds).padStart(2, '0')}`;
+
+  
+  const [isSaving, setIsSaving] = useState(false);
+
+  const canSave =
+    !walk.isTracking &&
+    walk.points.length >= 2 &&
+    !isSaving;
+
+  async function handleSaveWalk() {
+    if (!canSave) return;
+
+    setIsSaving(true);
+
+    try {
+      const inserted = await saveWalk({
+        points: walk.points,
+        distanceMeters,
+        durationSeconds: elapsedSeconds,
+      });
+
+      Alert.alert(
+        inserted ? 'Walk saved 🌱' : 'Already saved',
+        inserted
+          ? 'Your walk is saved on your phone.'
+          : 'This recording is already saved.'
+      );
+    } catch (error) {
+      Alert.alert(
+        'Could not save',
+        error instanceof Error ? error.message : 'Please try again.'
+      );
+    } finally {
+      setIsSaving(false);
+    }
+  }
 
   return (
     <SafeAreaProvider>
@@ -61,14 +112,37 @@ export default function App() {
             <Text style={styles.description}>
               Recorded points: {walk.points.length}
             </Text>
+            
+            <Pressable
+              onPress={handleSaveWalk}
+              disabled={!canSave}
+              style={{
+                backgroundColor: colors.lilac,
+                padding: 14,
+                borderRadius: 14,
+                marginTop: 12,
+                alignItems: 'center',
+                opacity: canSave ? 1 : 0.5,
+              }}
+            >
+              <Text style={{
+                color: colors.cardText,
+                fontWeight: '700',
+              }}>
+                {isSaving ? 'Saving…' : 'Save walk'}
+              </Text>
+            </Pressable>
 
             {walk.error !== '' && (
               <Text style={styles.description}>{walk.error}</Text>
             )}
-            <DistanceCard distance={8.25} />
+            <DistanceCard distance={distanceMeters / 1000} />
+            <Text style={styles.description}>
+              Debug distance: {distanceMeters.toFixed(2)} m
+            </Text>
 
             <View style={styles.metricRow}>
-              <MetricCard label="Steps 👟" value="5,200" />
+              <MetricCard label="Walk time ⏱️" value={walkTime} />
               <MetricCard label="Active time ⏱️" value="28 min" />
             </View>
 
@@ -79,6 +153,8 @@ export default function App() {
 
             <MapPanel />
           </>
+        ) : activeTab === 'History' ? (
+          <HistoryScreen />
         ) : (
           <View>
             <Text style={styles.greeting}>{activeTab}</Text>
