@@ -4,7 +4,9 @@ import { colors } from '../theme/colors';
 export default function AppHeader() {
   return (
     <View style={styles.header}>
-      <Text style={styles.title}>Little Trails 🌱</Text>
+      <Text style={styles.title}>Little Trails  🌱</Text>
+      <Text style = {styles.subtitle}> Your Personal Trail Explorer</Text>
+      <Text style={styles.subtitle}> Track Your adventures and grow yourself</Text>
       <Text style={styles.subtitle}>
         Every little journey counts.
       </Text>

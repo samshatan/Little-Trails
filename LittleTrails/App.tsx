@@ -1,30 +1,37 @@
+import { useState } from 'react';
 import { StatusBar } from 'expo-status-bar';
-import { Alert, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import {
+  Alert,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  View,
+} from 'react-native';
 import {
   SafeAreaProvider,
   SafeAreaView,
 } from 'react-native-safe-area-context';
+
 import { colors, isDark } from './theme/colors';
-import { useState } from 'react';
 import AppHeader from './components/AppHeader';
 import DistanceCard from './components/DistanceCard';
 import MetricCard from './components/MetricCard';
 import MapPanel from './components/MapPanel';
 import BottomNavigation from './components/BottomNavigation';
 import LocationCard from './components/LocationCard';
-import useWalkTracker from './hooks/useWalkTracker';
-import { getRouteDistanceMeters } from './utils/distance';
-import useElapsedTime from './hooks/useElapsedTime';
-import { saveWalk } from './storage/walks';
 import HistoryScreen from './screens/HistoryScreen';
 
+import useWalkTracker from './hooks/useWalkTracker';
+import useElapsedTime from './hooks/useElapsedTime';
+import { getRouteDistanceMeters } from './utils/distance';
+import { saveWalk } from './storage/walks';
 
 export default function App() {
   const [activeTab, setActiveTab] = useState('Today');
+  const [isSaving, setIsSaving] = useState(false);
+
   const walk = useWalkTracker();
-  const distanceMeters = getRouteDistanceMeters(
-    walk.points.map((point) => point.coords)
-  );
   const elapsedSeconds = useElapsedTime(walk.isTracking);
 
   const minutes = Math.floor(elapsedSeconds / 60);
@@ -34,12 +41,24 @@ export default function App() {
     `${String(minutes).padStart(2, '0')}:` +
     `${String(seconds).padStart(2, '0')}`;
 
-  
-  const [isSaving, setIsSaving] = useState(false);
+  const usablePoints = walk.points.filter((point) => {
+    const accuracy = point.coords.accuracy;
+
+    return (
+      accuracy !== null &&
+      Number.isFinite(accuracy) &&
+      accuracy > 0 &&
+      accuracy <= 15
+    );
+  });
+
+  const distanceMeters = getRouteDistanceMeters(
+    usablePoints.map((point) => point.coords)
+  );
 
   const canSave =
     !walk.isTracking &&
-    walk.points.length >= 2 &&
+    usablePoints.length >= 2 &&
     !isSaving;
 
   async function handleSaveWalk() {
@@ -73,110 +92,124 @@ export default function App() {
   return (
     <SafeAreaProvider>
       <SafeAreaView style={styles.app}>
-      <StatusBar style={isDark ? 'light' : 'dark'} />
+        <StatusBar style={isDark ? 'light' : 'dark'} />
 
-      <ScrollView
-        style={{ flex: 1 }}
-        contentContainerStyle={styles.screen}
-      >
-        <AppHeader />
+        <ScrollView
+          style={{ flex: 1 }}
+          contentContainerStyle={styles.screen}
+        >
+          <AppHeader />
 
-        {activeTab === 'Today' ? (
-          <>
-            <Text style={styles.greeting}>
-              Hello, Sameer 👋
-            </Text>
-            <Text style={styles.description}>
-              Where will your feet take you today?
-            </Text>
+          {activeTab === 'Today' ? (
+            <>
+              <Text style={styles.greeting}>Hello, Sameer 👋</Text>
 
-            <LocationCard />
-            <Pressable
-              onPress={walk.isTracking ? walk.stop : walk.start}
-              style={{
-                backgroundColor: colors.mint,
-                padding: 14,
-                borderRadius: 14,
-                marginTop: 16,
-                alignItems: 'center',
-              }}
-            >
-              <Text style={{
-                color: colors.mintStrongText,
-                fontWeight: '700',
-              }}>
-                {walk.isTracking ? 'Stop walk' : 'Start walk'}
+              <Text style={styles.description}>
+                Where will your feet take you today?
               </Text>
-            </Pressable>
 
-            <Text style={styles.description}>
-              Recorded points: {walk.points.length}
-            </Text>
-            
-            <Pressable
-              onPress={handleSaveWalk}
-              disabled={!canSave}
-              style={{
-                backgroundColor: colors.lilac,
-                padding: 14,
-                borderRadius: 14,
-                marginTop: 12,
-                alignItems: 'center',
-                opacity: canSave ? 1 : 0.5,
-              }}
-            >
-              <Text style={{
-                color: colors.cardText,
-                fontWeight: '700',
-              }}>
-                {isSaving ? 'Saving…' : 'Save walk'}
+              <LocationCard />
+
+              <Pressable
+                onPress={walk.isTracking ? walk.stop : walk.start}
+                style={styles.trackingButton}
+              >
+                <Text style={styles.trackingButtonText}>
+                  {walk.isTracking ? 'Stop walk' : 'Start walk'}
+                </Text>
+              </Pressable>
+
+              <Text style={styles.description}>
+                Recorded points: {walk.points.length}
+                {' · Usable: '}
+                {usablePoints.length}
               </Text>
-            </Pressable>
 
-            {walk.error !== '' && (
-              <Text style={styles.description}>{walk.error}</Text>
-            )}
-            <DistanceCard distance={distanceMeters / 1000} />
-            <Text style={styles.description}>
-              Debug distance: {distanceMeters.toFixed(2)} m
-            </Text>
+              <Pressable
+                onPress={handleSaveWalk}
+                disabled={!canSave}
+                style={[
+                  styles.saveButton,
+                  { opacity: canSave ? 1 : 0.5 },
+                ]}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSaving ? 'Saving…' : 'Save walk'}
+                </Text>
+              </Pressable>
 
-            <View style={styles.metricRow}>
-              <MetricCard label="Walk time ⏱️" value={walkTime} />
-              <MetricCard label="Active time ⏱️" value="28 min" />
+              {walk.error !== '' && (
+                <Text style={styles.description}>{walk.error}</Text>
+              )}
+
+              <DistanceCard distance={distanceMeters / 1000} />
+
+              <Text style={styles.description}>
+                Debug distance: {distanceMeters.toFixed(2)} m
+              </Text>
+
+              {usablePoints.length < 2 && (
+                <Text style={styles.description}>
+                  {walk.isTracking
+                    ? 'Waiting for a clearer location reading…'
+                    : 'Record at least two usable readings to save a walk.'}
+                </Text>
+              )}
+
+              {walk.points.slice(-10).map((point, index) => (
+                <Text
+                  key={`${point.timestamp}-${index}`}
+                  style={styles.description}
+                >
+                  Reading {index + 1}
+                  {' · Accuracy: '}
+                  {point.coords.accuracy?.toFixed(0) ?? 'unknown'} m
+                  {' · Speed: '}
+                  {point.coords.speed?.toFixed(2) ?? 'unknown'} m/s
+                </Text>
+              ))}
+
+              <View style={styles.metricRow}>
+                <MetricCard label="Steps 👟" value="5,200" />
+                <MetricCard label="Walk time ⏱️" value={walkTime} />
+              </View>
+
+              <View style={styles.metricRow}>
+                <MetricCard label="Est. calories 🔥" value="120 kcal" />
+                <MetricCard label="Pace · min/km" value="12:00" />
+              </View>
+
+              <MapPanel />
+            </>
+          ) : activeTab === 'History' ? (
+            <HistoryScreen />
+          ) : (
+            <View>
+              <Text style={styles.greeting}>{activeTab}</Text>
+
+              <Text style={styles.description}>
+                A new chapter of your little adventures 🌿
+              </Text>
+
+              {activeTab === 'Explore' && <MapPanel />}
             </View>
+          )}
+        </ScrollView>
 
-            <View style={styles.metricRow}>
-              <MetricCard label="Est. calories 🔥" value="120 kcal" />
-              <MetricCard label="Pace · min/km" value="12:00" />
-            </View>
-
-            <MapPanel />
-          </>
-        ) : activeTab === 'History' ? (
-          <HistoryScreen />
-        ) : (
-          <View>
-            <Text style={styles.greeting}>{activeTab}</Text>
-            <Text style={styles.description}>
-              A new chapter of your little adventures 🌿
-            </Text>
-
-            {activeTab === 'Explore' && <MapPanel />}
-          </View>
-        )}
-      </ScrollView>
-
-      <BottomNavigation
-        activeTab={activeTab}
-        onTabChange={setActiveTab}
-      />
+        <BottomNavigation
+          activeTab={activeTab}
+          onTabChange={setActiveTab}
+        />
       </SafeAreaView>
     </SafeAreaProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  app: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
   screen: {
     flexGrow: 1,
     backgroundColor: colors.background,
@@ -199,8 +232,26 @@ const styles = StyleSheet.create({
     gap: 12,
     marginTop: 16,
   },
-  app: {
-    flex: 1,
-    backgroundColor: colors.background,
+  trackingButton: {
+    backgroundColor: colors.mint,
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 16,
+    alignItems: 'center',
+  },
+  trackingButtonText: {
+    color: colors.mintStrongText,
+    fontWeight: '700',
+  },
+  saveButton: {
+    backgroundColor: colors.lilac,
+    padding: 14,
+    borderRadius: 14,
+    marginTop: 12,
+    alignItems: 'center',
+  },
+  saveButtonText: {
+    color: colors.cardText,
+    fontWeight: '700',
   },
 });
