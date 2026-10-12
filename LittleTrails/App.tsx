@@ -102,7 +102,7 @@ export default function App() {
 
           {activeTab === 'Today' ? (
             <>
-              <Text style={styles.greeting}>Hello, Sameer 👋</Text>
+              <Text style={styles.greeting}>Hello, My Friend 👋</Text>
 
               <Text style={styles.description}>
                 Where will your feet take you today?

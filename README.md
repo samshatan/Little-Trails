@@ -2,6 +2,12 @@
 
 Little Trails is a small Expo and React Native walking companion. Start a walk, collect location readings, see the recorded distance, and save completed walks locally on your device.
 
+## Demo
+
+The web demo is available at **[samshatan.github.io/Little-Trails](https://samshatan.github.io/Little-Trails/)**.
+
+The demo is deployed automatically to GitHub Pages whenever changes are pushed to `main`. The native location experience is best tested on a physical Android or iOS device.
+
 ## Features
 
 - Start and stop a walk recording.

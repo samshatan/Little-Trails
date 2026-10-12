@@ -33,6 +33,6 @@ const darkColors: typeof lightColors = {
   cardMuted: '#806C92',
 };
 
-export const isDark = true;
+export const isDark = false;
 
 export const colors = isDark ? darkColors : lightColors;
