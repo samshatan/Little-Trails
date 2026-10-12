@@ -1,7 +1,7 @@
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { colors } from '../theme/colors';
 
-const tabs = ['Today', 'Explore', 'History', 'Places', 'Month'];
+const tabs = ['Today', 'Explore', 'History', 'Places', 'Month','Extra'];
 
 type BottomNavigationProps = {
   activeTab: string;
